@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inclinometer + Kompass</title>
+<style>
+  html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  /* Background modes per theme */
+  body.bg-gradient.t-original{background:linear-gradient(135deg,#0b0f14,#0a0a0a)}
+  body.bg-gradient.t-apple{background:radial-gradient(1200px 900px at 50% -20%, #141823 0%, #0b0c10 55%, #0a0b10 100%)}
+  body.bg-gradient.t-isuzu{background:linear-gradient(180deg,#0f0e0e,#050505)}
+  body.bg-gradient.t-metal{background:radial-gradient(1400px 1000px at 50% -20%, #1a1b1e 0%, #0b0b0c 55%, #090a0e 100%)}
+  body.bg-gradient.t-kompass{background:radial-gradient(1200px 900px at 50% -20%, #0e1219 0%, #0a0d12 55%, #080a0e 100%)}
+  body.bg-solid{background:#0b0c10}
+  body.bg-transparent{background:transparent}
+  .topbar{position:fixed;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;z-index:80}
+  .pill{border-radius:999px;padding:8px 12px;font-size:12px;border:1px solid rgba(255,255,255,.15);backdrop-filter:saturate(1.6) blur(10px);cursor:pointer;color:#f5f7fa;background:rgba(255,255,255,.08)}
+  .btn{border-radius:10px;padding:8px 12px;font-weight:600;border:0;cursor:pointer}
+  .hidden{display:none !important}
+  .page{min-height:100%; padding-top:56px}
+  .glass{border-radius:24px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.12);backdrop-filter:saturate(1.6) blur(14px);box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06)}
+  .title{font-size:13px;color:#a8b0bd;margin-bottom:8px;letter-spacing:.12em;text-transform:uppercase}
+  .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;user-select:none;color:#f5f7fa}
+  .num{font:600 44px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+  .hint{font-size:12px;color:#a8b0bd}
+  .controls{position:fixed;left:10px;bottom:10px;display:flex;gap:8px;align-items:center;z-index:60}
+  /* Digital compass chip */
+  .chip{position:fixed;right:10px;bottom:10px;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;border:1px solid rgba(255,255,255,.16);background:rgba(0,0,0,.45);backdrop-filter:blur(10px);color:#e5e7eb;z-index:65}
+  .chip strong{font:600 16px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+  /* ORIGINAL layout */
+  .original-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}
+  @media(max-width:900px){ .original-grid{grid-template-columns:1fr} }
+  .barBox{position:relative;height:220px;border-radius:16px;background:radial-gradient(600px 400px at 50% 0%, #101826 0%, transparent 70%);border:1px solid rgba(255,255,255,.12)}
+  .hTrack{position:absolute;left:20px;right:20px;top:50%;height:2px;background:#cbd5e1;border-radius:999px}
+  .puck{position:absolute;top:calc(50% - 10px);width:20px;height:20px;border-radius:50%;backdrop-filter:blur(2px)}
+  .bar{position:absolute;left:20px;right:20px;bottom:24px;height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .fill{position:absolute;left:50%;top:0;bottom:0;border-radius:999px}
+  .bigNum{position:absolute;right:16px;top:12px;font:600 42px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;color:#eef2f6}
+  .label{position:absolute;left:16px;top:12px;font-size:12px;letter-spacing:.08em;opacity:.95;text-transform:uppercase;display:flex;gap:8px;align-items:center;color:#e5e7eb}
+  .icon{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;opacity:.9}
+  .dial{position:relative;aspect-ratio:1/1;border-radius:18px;background:radial-gradient(800px 600px at 50% 30%, #0f1624 0%, #0b0f16 60%, transparent 100%);overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+  .dial svg{position:absolute;inset:0}
+  .dial .num{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:600 42px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;color:#eef2f6}
+  /* APPLE layout */
+  .apple-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:20px}
+  @media(max-width:900px){ .apple-grid{grid-template-columns:1fr} }
+  .gauge{position:relative;aspect-ratio:1/1;border-radius:28px;background:radial-gradient(900px 700px at 50% 30%, #0f1218 0%, #0c0f15 60%, #0b0c10 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), inset 0 8px 40px rgba(0,0,0,.6)}
+  /* ISUZU layout */
+  .isuzu-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px}
+  @media(max-width:900px){ .isuzu-grid{grid-template-columns:1fr} }
+  .panel{border:1px solid #2b2b2b;border-radius:12px;background:#0a0a0a;box-shadow:inset 0 2px 0 rgba(255,255,255,.04), 0 4px 30px rgba(0,0,0,.5);padding:14px;color:#f3f4f6}
+  .segBar{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:16px;background:#111;padding:4px;border-radius:8px;border:1px solid #2b2b2b}
+  .seg{background:#1a1a1a;border-radius:3px}
+  .seg.on{background:linear-gradient(#ff7a00,#ff3b00);box-shadow:0 0 8px rgba(255,80,0,.6)}
+  .led{font:700 40px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;letter-spacing:.02em}
+  .badge{font-size:11px;color:#c4bdb6;text-transform:uppercase;letter-spacing:.12em}
+  .isuzu-title{display:flex;align-items:center;gap:8px}
+  .isuzu-icon{width:16px;height:16px;stroke:#ff3b00;stroke-width:2;fill:none}
+  /* METAL redesigned */
+  .metal-grid{display:grid; grid-template-columns:1fr 1fr; gap:22px; padding:20px}
+  @media(max-width:900px){ .metal-grid{grid-template-columns:1fr} }
+  .bezel{position:relative;aspect-ratio:1/1;border-radius:50%;background: radial-gradient(160px 160px at 30% 30%, #6a6e75, #2f3137 60%, #1c1e22 100%);
+          box-shadow: inset 2px 2px 8px rgba(255,255,255,.25), inset -10px -14px 28px rgba(0,0,0,.7), 0 16px 40px rgba(0,0,0,.6);}
+  .bezel::before{content:"";position:absolute;inset:12px;border-radius:50%;background: radial-gradient(600px 600px at 50% 40%, #0e0f12 0%, #0c0d10 60%, #0b0b0c 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);}
+  .tick{position:absolute;left:0;top:0;right:0;bottom:0}
+  .metal-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#f5f7fa;text-shadow:0 0 10px rgba(255,255,255,.2)}
+  .metal-num{font:700 44px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+  /* COMPASS THEME */
+  .c-wrap{padding:20px;display:grid;grid-template-columns:1fr;gap:20px}
+  .compGauge{position:relative;aspect-ratio:1/1;max-width:560px;margin:0 auto;border-radius:28px;background:radial-gradient(900px 700px at 50% 30%, #0f1218 0%, #0c0f15 60%, #0b0c10 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), inset 0 8px 40px rgba(0,0,0,.6)}
+  .compCenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#f5f7fa}
+  .compDeg{font:700 42px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+  /* Drawer */
+  .drawer{position:fixed;right:12px;bottom:60px;width:320px;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.6);backdrop-filter:blur(12px) saturate(1.4);padding:12px;z-index:90;color:#e5e7eb}
+  .drawer h3{margin:0 0 8px 0; font-size:14px; opacity:.9}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{flex:1;font-size:12px;opacity:.9}
+  .row input[type=color]{width:42px;height:28px;border:1px solid rgba(255,255,255,.2);background:transparent;border-radius:8px}
+  .row select{flex:1}
+  .gBtn{padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+  /* iOS fullscreen help */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:200}
+  .modalBox{width:min(560px,92%);background:#0f1218;color:#e5e7eb;border:1px solid #2b2f37;border-radius:16px;padding:16px;backdrop-filter:blur(12px)}
+</style>
+</head>
+<body class="bg-gradient t-original">
+  <div class="topbar">
+    <button class="pill" id="openSettings">Inställningar</button>
+    <button class="pill" id="fsBtn">Helskärm</button>
+  </div>
+
+  <!-- ORIGINAL -->
+  <div id="page-original" class="page">
+    <div class="original-grid">
+      <div class="glass">
+        <div class="barBox" id="oPitchBox">
+          <div class="label lbl"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 5l5 5M12 19l5-5"/></svg>Pitch • fram/bak</div>
+          <div id="oPitchNum" class="bigNum">0.0°</div>
+          <div class="hTrack" id="oPitchTrack"></div>
+          <div class="puck" id="oPitchPuck"></div>
+          <div class="bar"><div class="fill" id="oPitchFill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="glass">
+        <div class="dial">
+          <svg viewBox="0 0 100 100">
+            <defs><filter id="oglow"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <g id="oRollTicks"></g>
+            <g id="oRollH" filter="url(#oglow)"><line x1="12" x2="88" y1="50" y2="50" stroke="#cbd5e1" stroke-width="0.8" stroke-linecap="round"/></g>
+            <g id="oRollSweep" filter="url(#oglow)"></g>
+          </svg>
+          <div id="oRollNum" class="num">0.0°</div>
+          <div class="center lbl"><div class="hint" style="margin-top:70px">Roll • sidolutning</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- APPLE -->
+  <div id="page-apple" class="page hidden">
+    <div class="glass">
+      <div class="title lbl">Mätare</div>
+      <div class="apple-grid">
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="ringGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255,255,255,.85)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,.12)"/>
+              </linearGradient>
+              <filter id="softGlow">
+                <feGaussianBlur stdDeviation="1.2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="none" stroke="url(#ringGrad)" stroke-width="0.5"/>
+            <g id="aPitchTicks"></g>
+            <g id="aPitchH" filter="url(#softGlow)"><line x1="14" x2="86" y1="50" y2="50" stroke="#dbe4ee" stroke-width="0.7" stroke-linecap="round"/></g>
+            <g id="aPitchSweep" filter="url(#softGlow)"></g>
+          </svg>
+          <div class="center">
+            <div id="aPitchNum" class="num">0.0°</div>
+            <div class="hint lbl">Pitch • fram/bak</div>
+          </div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="46" fill="none" stroke="url(#ringGrad)" stroke-width="0.5"/>
+            <g id="aRollTicks"></g>
+            <g id="aRollH" filter="url(#softGlow)"><line x1="14" x2="86" y1="50" y2="50" stroke="#dbe4ee" stroke-width="0.7" stroke-linecap="round"/></g>
+            <g id="aRollSweep" filter="url(#softGlow)"></g>
+          </svg>
+          <div class="center">
+            <div id="aRollNum" class="num">0.0°</div>
+            <div class="hint lbl">Roll • sidolutning</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ISUZU -->
+  <div id="page-isuzu" class="page hidden">
+    <div class="isuzu-grid">
+      <div class="panel">
+        <div class="isuzu-title lbl"><svg class="isuzu-icon" viewBox="0 0 24 24"><path d="M3 12h18M12 5l5 5M12 19l5-5"/></svg><span class="badge">Pitch • fram/bak</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div id="iPitchNum" class="led">0.0°</div>
+        </div>
+        <div id="iPitchSeg" class="segBar" style="margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <div class="isuzu-title lbl"><svg class="isuzu-icon" viewBox="0 0 24 24"><path d="M12 3v18M5 12l5-5M19 12l-5-5"/></svg><span class="badge">Roll • sidolutning</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div id="iRollNum" class="led">0.0°</div>
+        </div>
+        <div id="iRollSeg" class="segBar" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- METAL -->
+  <div id="page-metal" class="page hidden">
+    <div class="metal-grid">
+      <div class="bezel">
+        <svg class="tick" viewBox="0 0 100 100">
+          <g id="mPitchTicks"></g>
+          <g id="mPitchH"><line x1="14" x2="86" y1="50" y2="50" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/></g>
+          <g id="mPitchSweep"></g>
+        </svg>
+        <div class="metal-center">
+          <div id="mPitchNum" class="metal-num">0.0°</div>
+          <div class="hint lbl">Pitch • fram/bak</div>
+        </div>
+      </div>
+      <div class="bezel">
+        <svg class="tick" viewBox="0 0 100 100">
+          <g id="mRollTicks"></g>
+          <g id="mRollH"><line x1="14" x2="86" y1="50" y2="50" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/></g>
+          <g id="mRollSweep"></g>
+        </svg>
+        <div class="metal-center">
+          <div id="mRollNum" class="metal-num">0.0°</div>
+          <div class="hint lbl">Roll • sidolutning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KOMPASS THEME -->
+  <div id="page-kompass" class="page hidden">
+    <div class="c-wrap">
+      <div class="compGauge glass">
+        <svg viewBox="0 0 100 100">
+          <defs><filter id="cglow"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+          <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="0.6"/>
+          <!-- 5° ticks -->
+          <g id="cTicks"></g>
+          <!-- rotating needle -->
+          <g id="cNeedle" filter="url(#cglow)">
+            <line x1="50" y1="50" x2="50" y2="10" stroke="#ef4444" stroke-width="1.6" stroke-linecap="round"/>
+            <line x1="50" y1="50" x2="50" y2="86" stroke="#3b82f6" stroke-width="1.2" stroke-linecap="round"/>
+            <circle cx="50" cy="50" r="2.2" fill="#e5e7eb"/>
+          </g>
+          <!-- N E S W -->
+          <g id="cCard"></g>
+        </svg>
+        <div class="compCenter">
+          <div id="cDeg" class="compDeg">000°</div>
+          <div id="cCardLbl" class="hint" style="margin-top:4px">N</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Drawer -->
+  <div id="drawer" class="drawer hidden">
+    <h3>Inställningar</h3>
+    <div class="row"><label>Tema (även standard)</label>
+      <select id="themeSelect">
+        <option value="original">Original</option>
+        <option value="apple">Apple</option>
+        <option value="isuzu">Isuzu</option>
+        <option value="metal">Metall</option>
+        <option value="kompass">Kompass</option>
+      </select>
+    </div>
+    <div class="row"><label>Precision (decimaler)</label>
+      <select id="precision"><option>0</option><option selected>1</option><option>2</option></select>
+    </div>
+    <div class="row"><label>Accentfärg</label><input id="accentColor" type="color" value="#22d3ee"></div>
+    <div class="row"><label>Pitch gult (°)</label><input id="pWarn" type="range" min="5" max="45" step="1" value="25"><span id="pWarnVal">25</span></div>
+    <div class="row"><label>Pitch rött (°)</label><input id="pRed" type="range" min="10" max="60" step="1" value="35"><span id="pRedVal">35</span></div>
+    <div class="row"><label>Roll gult (°)</label><input id="rWarn" type="range" min="5" max="45" step="1" value="20"><span id="rWarnVal">20</span></div>
+    <div class="row"><label>Roll rött (°)</label><input id="rRed" type="range" min="10" max="60" step="1" value="30"><span id="rRedVal">30</span></div>
+    <div class="row"><label>Visa etiketter</label><input id="showLabels" type="checkbox" checked></div>
+    <div class="row"><label>Bakgrund</label>
+      <select id="bgType"><option value="bg-gradient" selected>Gradient</option><option value="bg-solid">Solid</option><option value="bg-transparent">Transparent</option></select>
+    </div>
+    <div class="row"><label>Varningsljud</label>
+      <select id="soundMode"><option value="off">Av</option><option value="beep" selected>Kort beep</option><option value="siren">Siren</option></select>
+    </div>
+    <div class="row"><button id="calBoth" class="gBtn">Kalibrera (båda)</button><button id="resetCal" class="gBtn">Nollställ kal.</button></div>
+    <div class="row"><button id="calPitch" class="gBtn">Kalibrera Pitch</button><button id="calRoll" class="gBtn">Kalibrera Roll</button></div>
+    <div class="row"><label>Kompasschip i andra teman</label><input id="toggleCompassChip" type="checkbox" checked></div>
+    <div class="row"><button id="savePrefs" class="gBtn">Spara som standard</button><button id="resetPrefs" class="gBtn">Återställ standard</button></div>
+  </div>
+
+  <!-- Digital compass chip -->
+  <div id="chip" class="chip hidden">
+    <span class="hint">Kompass</span>
+    <strong id="chipDeg">000°</strong>
+    <span id="chipCard">N</span>
+  </div>
+
+  <!-- iOS fullscreen help modal -->
+  <div id="fsModal" class="modal hidden">
+    <div class="modalBox">
+      <h3 style="margin:0 0 8px 0">Helskärm på iPhone</h3>
+      <ol style="margin:0 0 10px 18px;line-height:1.5">
+        <li>Öppna sidan i Safari.</li>
+        <li>Tryck <strong>Dela</strong> → <strong>Lägg till på hemskärmen</strong>.</li>
+        <li>Öppna från hemskärmsikonen.</li>
+      </ol>
+      <button id="fsClose" class="gBtn">OK</button>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="btn">Starta</button>
+    <button id="stopBtn" class="btn hidden">Stoppa</button>
+  </div>
+
+<script>
+(function(){
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const toFixedN=(v,n)=>Number.isFinite(v)?v.toFixed(n):"—";
+  const $=(id)=>document.getElementById(id);
+
+  // state
+  let theme='original';
+  let precision=1;
+  let rawRoll=0, rawPitch=0, roll=0, pitch=0;
+  let rollZero=0, pitchZero=0;
+  let raf, lastDanger=false;
+  const S={accent:'#22d3ee', pWarn:25, pRed:35, rWarn:20, rRed:30, showLabels:true, bg:'bg-gradient', sound:'beep'};
+
+  // sound
+  let ac=null, sirenOsc=null, sirenGain=null;
+  function initAC(){ if(!ac) ac=new (window.AudioContext||window.webkitAudioContext)(); }
+  function playBeep(){
+    try{ initAC(); const o=ac.createOscillator(), g=ac.createGain(); o.type='sine'; o.frequency.value=880; g.gain.value=0.0001;
+      g.gain.exponentialRampToValueAtTime(0.2, ac.currentTime+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.25);
+      o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime+0.26);
+    }catch(e){}
+  }
+  function startSiren(){
+    try{ initAC();
+      if(sirenOsc) return;
+      sirenOsc=ac.createOscillator(); sirenGain=ac.createGain();
+      sirenOsc.type='sawtooth'; sirenOsc.frequency.value=600;
+      sirenGain.gain.value=0.0001;
+      sirenGain.gain.exponentialRampToValueAtTime(0.2, ac.currentTime+0.05);
+      sirenOsc.connect(sirenGain).connect(ac.destination);
+      sirenOsc.start();
+      // simple wobble
+      const LFO=ac.createOscillator(); const LFOgain=ac.createGain();
+      LFO.type='sine'; LFO.frequency.value=3; LFOgain.gain.value=300;
+      LFO.connect(LFOgain).connect(sirenOsc.frequency);
+      LFO.start();
+      sirenOsc._lfo=LFO; sirenOsc._gain=sirenGain;
+    }catch(e){}
+  }
+  function stopSiren(){
+    if(sirenOsc){ try{ sirenOsc._lfo?.stop(); sirenOsc.stop(); sirenOsc._gain.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime+0.05);}catch(e){} sirenOsc=null; sirenGain=null; }
+  }
+  function handleSound(danger){
+    if(S.sound==='off'){ stopSiren(); return; }
+    if(S.sound==='beep'){ if(danger && !lastDanger) playBeep(); stopSiren(); return; }
+    if(S.sound==='siren'){ if(danger){ startSiren(); } else { stopSiren(); } }
+  }
+
+  // build ticks
+  function drawTicks(groupId, step=5, major=10, color='rgba(229,231,235,.85)'){
+    const g=$(groupId); if(!g) return; g.innerHTML="";
+    for(let a=-45;a<=45;a+=step){
+      const len=(a%major===0)?3:2, r=44.5;
+      const rad=(a-90)*Math.PI/180;
+      const x1=50 + Math.cos(rad)*r, y1=50 + Math.sin(rad)*r;
+      const x2=50 + Math.cos(rad)*(r-len), y2=50 + Math.sin(rad)*(r-len);
+      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+      line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+      line.setAttribute('stroke',color); line.setAttribute('stroke-width','0.6');
+      g.appendChild(line);
+      if(a%major===0){
+        const tx=50 + Math.cos(rad)*(r-6), ty=50 + Math.sin(rad)*(r-6);
+        const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+        text.setAttribute('x',tx); text.setAttribute('y',ty);
+        text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+        text.setAttribute('fill',color); text.setAttribute('font-size','3.6');
+        text.textContent=String(Math.abs(a));
+        g.appendChild(text);
+      }
+    }
+  }
+  drawTicks('oRollTicks'); drawTicks('aPitchTicks'); drawTicks('aRollTicks'); drawTicks('mPitchTicks'); drawTicks('mRollTicks');
+
+  // compass theme ticks 5° + cardinal labels
+  (function(){
+    const g=$('cTicks'); if(!g) return; g.innerHTML='';
+    for(let a=0;a<360;a+=5){
+      const major=(a%30===0), r=44.5, len=major?3:1.4;
+      const rad=(a-90)*Math.PI/180;
+      const x1=50 + Math.cos(rad)*r, y1=50 + Math.sin(rad)*r;
+      const x2=50 + Math.cos(rad)*(r-len), y2=50 + Math.sin(rad)*(r-len);
+      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+      line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+      line.setAttribute('stroke','rgba(255,255,255,.6)'); line.setAttribute('stroke-width', major?'0.8':'0.5');
+      g.appendChild(line);
+      if(major && a%90!==0){
+        const tx=50 + Math.cos(rad)*38, ty=50 + Math.sin(rad)*38;
+        const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+        text.setAttribute('x',tx); text.setAttribute('y',ty);
+        text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+        text.setAttribute('fill','#cfd6de'); text.setAttribute('font-size','3.6'); text.textContent=String(a);
+        g.appendChild(text);
+      }
+    }
+    const card=$('cCard'); const labels=[['N',0],['E',90],['S',180],['W',270]];
+    labels.forEach(([t,deg])=>{
+      const r=36, rad=(deg-90)*Math.PI/180;
+      const x=50 + Math.cos(rad)*r, y=50 + Math.sin(rad)*r;
+      const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+      text.setAttribute('x',x); text.setAttribute('y',y); text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+      text.setAttribute('fill','#e5e7eb'); text.setAttribute('font-size','6'); text.textContent=t; card.appendChild(text);
+    });
+  })();
+
+  // helpers
+  function setRotate(id, deg){ const g=$(id); if(g) g.setAttribute('transform',`rotate(${deg} 50 50)`); }
+  function setSweep(id, deg, color){ const g=$(id); if(!g) return; const len=8, r=44; const from=(deg-len/2-90)*Math.PI/180, to=(deg+len/2-90)*Math.PI/180; const x1=50+Math.cos(from)*r, y1=50+Math.sin(from)*r; const x2=50+Math.cos(to)*r, y2=50+Math.sin(to)*r; g.innerHTML=""; const path=document.createElementNS('http://www.w3.org/2000/svg','path'); path.setAttribute('d',`M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`); path.setAttribute('fill','none'); path.setAttribute('stroke',color); path.setAttribute('stroke-width','3.2'); path.setAttribute('stroke-linecap','round'); path.setAttribute('opacity','.95'); g.appendChild(path); }
+  function setSegBar(containerId, valueDeg, max=30){ const wrap=$(containerId); if(!wrap) return; if(!wrap.dataset.built){ wrap.innerHTML=''; for(let i=0;i<30;i++){ const d=document.createElement('div'); d.className='seg'; wrap.appendChild(d); } wrap.dataset.built='1'; } const nodes=wrap.querySelectorAll('.seg'); const nOn=Math.round(Math.max(0,Math.min(1,Math.abs(valueDeg)/max))*nodes.length); nodes.forEach((el,i)=>{ el.classList.toggle('on', i<nOn); }); }
+
+  // pages and theme
+  const pages={ original:$('page-original'), apple:$('page-apple'), isuzu:$('page-isuzu'), metal:$('page-metal'), kompass:$('page-kompass') };
+  function showTheme(t){
+    theme=t;
+    document.body.classList.remove('t-original','t-apple','t-isuzu','t-metal','t-kompass');
+    document.body.classList.add('t-'+t);
+    Object.entries(pages).forEach(([k,el])=>{ el.classList.toggle('hidden', k!==t); });
+    // labels
+    document.querySelectorAll('.lbl').forEach(n=>{ n.style.display = S.showLabels ? '' : 'none'; });
+    // chip visibility
+    $('chip').classList.toggle('hidden', !(t!=='kompass' && $('toggleCompassChip').checked));
+  }
+
+  // drawer
+  const drawer=$('drawer');
+  $('openSettings').addEventListener('click', ()=>drawer.classList.toggle('hidden'));
+  function bindRange(id,key,outId){ const el=$(id), out=$(outId); el.addEventListener('input', ()=>{ S[key]=parseInt(el.value,10); out.textContent=String(S[key]); }); out.textContent=el.value; }
+  bindRange('pWarn','pWarn','pWarnVal'); bindRange('pRed','pRed','pRedVal'); bindRange('rWarn','rWarn','rWarnVal'); bindRange('rRed','rRed','rRedVal');
+  $('precision').addEventListener('change', ()=>{ precision=parseInt($('precision').value,10); persist(); });
+  $('accentColor').addEventListener('input', ()=>{ S.accent=$('accentColor').value; persist(); });
+  $('showLabels').addEventListener('change', ()=>{ S.showLabels=$('showLabels').checked; document.querySelectorAll('.lbl').forEach(n=>{ n.style.display = S.showLabels ? '' : 'none'; }); persist(); });
+  $('bgType').addEventListener('change', ()=>{ document.body.classList.remove('bg-gradient','bg-solid','bg-transparent'); document.body.classList.add($('bgType').value); S.bg=$('bgType').value; persist(); });
+  $('soundMode').addEventListener('change', ()=>{ S.sound=$('soundMode').value; persist(); });
+  $('toggleCompassChip').addEventListener('change', ()=>{ $('chip').classList.toggle('hidden', !(theme!=='kompass' && $('toggleCompassChip').checked)); persist(); });
+  $('themeSelect').addEventListener('change', ()=>{ showTheme($('themeSelect').value); persist(); });
+
+  // calibration
+  $('calBoth').addEventListener('click', ()=>{ rollZero=rawRoll; pitchZero=rawPitch; });
+  $('calRoll').addEventListener('click', ()=>{ rollZero=rawRoll; });
+  $('calPitch').addEventListener('click', ()=>{ pitchZero=rawPitch; });
+  $('resetCal').addEventListener('click', ()=>{ rollZero=0; pitchZero=0; });
+
+  // save/reset prefs
+  function persist(){
+    const payload={ theme, precision, accent:S.accent, pWarn:S.pWarn, pRed:S.pRed, rWarn:S.rWarn, rRed:S.rRed, showLabels:S.showLabels, bg:S.bg, sound:S.sound, chip: $('toggleCompassChip').checked };
+    localStorage.setItem('inclino_prefs', JSON.stringify(payload));
+  }
+  $('savePrefs').addEventListener('click', persist);
+  $('resetPrefs').addEventListener('click', ()=>{ localStorage.removeItem('inclino_prefs'); location.reload(); });
+
+  // restore prefs
+  (function restore(){
+    const raw=localStorage.getItem('inclino_prefs');
+    if(raw){
+      try{ const p=JSON.parse(raw);
+        theme = p.theme||theme;
+        precision = Number.isFinite(p.precision)?p.precision:precision;
+        S.accent = p.accent||S.accent;
+        S.pWarn = p.pWarn||S.pWarn; S.pRed=p.pRed||S.pRed;
+        S.rWarn = p.rWarn||S.rWarn; S.rRed=p.rRed||S.rRed;
+        S.showLabels = p.showLabels!==undefined ? p.showLabels : S.showLabels;
+        S.bg = p.bg||S.bg;
+        S.sound = p.sound||S.sound;
+        // apply to UI
+        $('themeSelect').value=theme;
+        $('precision').value=String(precision);
+        $('accentColor').value=S.accent;
+        $('pWarn').value=S.pWarn; $('pWarnVal').textContent=String(S.pWarn);
+        $('pRed').value=S.pRed;   $('pRedVal').textContent=String(S.pRed);
+        $('rWarn').value=S.rWarn; $('rWarnVal').textContent=String(S.rWarn);
+        $('rRed').value=S.rRed;   $('rRedVal').textContent=String(S.rRed);
+        $('showLabels').checked=S.showLabels;
+        $('bgType').value=S.bg;
+        $('soundMode').value=S.sound;
+        $('toggleCompassChip').checked = p.chip!==undefined ? p.chip : true;
+      }catch(e){}
+    }
+    // apply bg
+    document.body.classList.add(S.bg);
+    // show theme
+    showTheme(theme);
+  })();
+
+  // fullscreen
+  $('fsBtn').addEventListener('click', async ()=>{
+    const isiOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+    if(!isiOS && document.documentElement.requestFullscreen){
+      try{ await document.documentElement.requestFullscreen(); }catch(e){}
+    }else{ $('fsModal').classList.remove('hidden'); }
+  });
+  $('fsClose').addEventListener('click', ()=>$('fsModal').classList.add('hidden'));
+
+  // sensors + compass
+  let compassHeading=0;
+  function handleOrientation(e){
+    const beta=Math.max(-90, Math.min(90, e.beta??0));
+    const gamma=Math.max(-90, Math.min(90, e.gamma??0));
+    rawPitch=beta; rawRoll=gamma;
+    let heading=null;
+    if(typeof e.webkitCompassHeading === 'number'){ heading = e.webkitCompassHeading; }
+    else if(typeof e.alpha === 'number'){ heading = (360 - e.alpha + (screen.orientation?.angle||0))%360; }
+    if(heading!=null){ compassHeading = heading; }
+  }
+
+  // start/stop
+  async function start(){
+    if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const perm=await DeviceOrientationEvent.requestPermission();
+      if(perm!=='granted') return;
+    }
+    window.addEventListener('deviceorientation', handleOrientation, {passive:true});
+    $('startBtn').classList.add('hidden'); $('stopBtn').classList.remove('hidden');
+    loop();
+  }
+  function stop(){
+    window.removeEventListener('deviceorientation', handleOrientation);
+    $('stopBtn').classList.add('hidden'); $('startBtn').classList.remove('hidden');
+    cancelAnimationFrame(raf);
+  }
+  $('startBtn').addEventListener('click', start);
+  $('stopBtn').addEventListener('click', stop);
+
+  // per theme updates
+  function updateOriginal(){
+    const box=$('oPitchBox').getBoundingClientRect();
+    const left=20, right=box.width-20, mid=left + (right-left)/2;
+    const span=right-left; const maxDeg=30;
+    const x = mid + Math.max(-1,Math.min(1,(pitch/maxDeg)))*(span/2 - 10);
+    const puck=$('oPitchPuck');
+    puck.style.left=(x)+'px';
+    puck.style.background = S.accent+'33';
+    puck.style.border = '1px solid '+S.accent;
+    puck.style.boxShadow = `0 0 16px ${S.accent}66`;
+    $('oPitchNum').textContent=toFixedN(pitch,precision)+'°';
+    $('oRollNum').textContent=toFixedN(roll,precision)+'°';
+    setRotate('oRollH', roll);
+    setSweep('oRollSweep', roll, S.accent);
+    const fill=$('oPitchFill'); const percent=Math.max(-1,Math.min(1,(pitch/30)))*50;
+    fill.style.background = `linear-gradient(90deg, ${S.accent}, #22c55e)`;
+    if(percent>=0){ fill.style.left='50%'; fill.style.width=percent+'%'; } else { fill.style.left=(50+percent)+'%'; fill.style.width=(-percent)+'%'; }
+  }
+  function updateApple(){
+    $('aPitchNum').textContent=toFixedN(pitch,precision)+'°';
+    $('aRollNum').textContent=toFixedN(roll,precision)+'°';
+    setRotate('aPitchH', pitch); setRotate('aRollH', roll);
+    setSweep('aPitchSweep', pitch, '#ffffff'); setSweep('aRollSweep',  roll, '#ffffff');
+  }
+  function updateIsuzu(){
+    $('iPitchNum').textContent=toFixedN(pitch,precision)+'°';
+    $('iRollNum').textContent=toFixedN(roll,precision)+'°';
+    setSegBar('iPitchSeg', pitch, 30); setSegBar('iRollSeg', roll, 30);
+  }
+  function updateMetal(){
+    $('mPitchNum').textContent=toFixedN(pitch,precision)+'°';
+    $('mRollNum').textContent=toFixedN(roll,precision)+'°';
+    setRotate('mPitchH', pitch); setRotate('mRollH', roll);
+    setSweep('mPitchSweep', pitch, '#e5e7eb'); setSweep('mRollSweep',  roll, '#e5e7eb');
+  }
+  function updateCompassTheme(){
+    $('cDeg').textContent=String(Math.round(compassHeading)).padStart(3,'0')+'°';
+    $('cCardLbl').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(compassHeading/45)%8];
+    setRotate('cNeedle', compassHeading);
+  }
+
+  // chip update
+  function updateChip(){
+    if(theme==='kompass' || !$('toggleCompassChip').checked){ $('chip').classList.add('hidden'); return; }
+    $('chip').classList.remove('hidden');
+    $('chipDeg').textContent=String(Math.round(compassHeading)).padStart(3,'0')+'°';
+    $('chipCard').textContent=['N','NE','E','SE','S','SW','W','NW'][Math.round(compassHeading/45)%8];
+  }
+
+  function loop(){
+    const pr=rawRoll - rollZero, pp=rawPitch - pitchZero;
+    const alpha = precision===0 ? 0.12 : precision===1 ? 0.15 : 0.2;
+    roll = roll + alpha*(pr - roll);
+    pitch = pitch + alpha*(pp - pitch);
+
+    if(theme==='original') updateOriginal();
+    if(theme==='apple')    updateApple();
+    if(theme==='isuzu')    updateIsuzu();
+    if(theme==='metal')    updateMetal();
+    if(theme==='kompass')  updateCompassTheme();
+
+    // danger and sound
+    const danger = Math.abs(pitch)>=S.pRed || Math.abs(roll)>=S.rRed;
+    handleSound(danger);
+    lastDanger = danger;
+
+    updateChip();
+    raf=requestAnimationFrame(loop);
+  }
+
+  // init bg and theme
+  document.body.classList.add($('bgType').value);
+  showTheme($('themeSelect').value);
+})();
+</script>
+</body>
+</html>
