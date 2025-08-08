@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Inclinometer – Teman + Inställningar</title>
+<style>
+  /* Base */
+  html,body{height:100%;margin:0;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,Segoe UI,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+  .topbar{position:fixed;left:0;right:0;top:0;display:flex;gap:8px;align-items:center;justify-content:center;padding:10px;z-index:50}
+  .pill{border-radius:999px;padding:8px 12px;font-size:12px;border:1px solid rgba(255,255,255,.15);backdrop-filter:saturate(1.6) blur(10px);cursor:pointer;color:#f5f7fa;background:rgba(255,255,255,.08)}
+  .btn{border-radius:10px;padding:8px 12px;font-weight:600;border:0;cursor:pointer}
+  .controls{position:fixed;left:10px;bottom:10px;display:flex;gap:8px;align-items:center;z-index:60}
+  .hint{font-size:12px;opacity:.85;color:#e5e7eb}
+  .hidden{display:none !important}
+  .drawer{position:fixed;right:12px;bottom:60px;width:280px;border-radius:16px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.6);backdrop-filter:blur(12px) saturate(1.4);padding:12px;z-index:70; color:#e5e7eb}
+  .drawer h3{margin:0 0 8px 0; font-size:14px; opacity:.9}
+  .row{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .row label{flex:1;font-size:12px;opacity:.9}
+  .row input[type=range]{flex:1}
+  .row input[type=color]{width:42px;height:28px;border:1px solid rgba(255,255,255,.2);background:transparent;border-radius:8px}
+  .row input[type=checkbox]{width:16px;height:16px}
+  .gBtn{padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.08);color:#fff;cursor:pointer}
+  .t-original{--bg1:#0b0f14;--bg2:#0a0a0a; background:linear-gradient(135deg,var(--bg1),var(--bg2));}
+  .t-apple{background:radial-gradient(1200px 900px at 50% -20%, #141823 0%, #0b0c10 55%, #0a0b10 100%);}
+  .t-isuzu{background:linear-gradient(180deg,#0f0e0e,#050505);}
+  .t-metal{background:radial-gradient(1400px 1000px at 50% -20%, #1a1b1e 0%, #0b0b0c 55%, #090a0e 100%);}
+  .page{min-height:100%; padding-top:56px}
+  .glass{border-radius:24px;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));border:1px solid rgba(255,255,255,.12);backdrop-filter:saturate(1.6) blur(14px);box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06)}
+  .title{font-size:13px;color:#a8b0bd;margin-bottom:8px;letter-spacing:.12em;text-transform:uppercase}
+  .center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;user-select:none;color:#f5f7fa}
+  .num{font:600 44px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+  .original-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:20px}
+  @media(max-width:900px){ .original-grid{grid-template-columns:1fr} }
+  .barBox{position:relative;height:220px;border-radius:16px;background:radial-gradient(600px 400px at 50% 0%, #101826 0%, transparent 70%);border:1px solid rgba(255,255,255,.12)}
+  .hTrack{position:absolute;left:20px;right:20px;top:50%;height:2px;background:#cbd5e1;border-radius:999px}
+  .puck{position:absolute;top:calc(50% - 10px);width:20px;height:20px;border-radius:50%;backdrop-filter:blur(2px)}
+  .bar{position:absolute;left:20px;right:20px;bottom:24px;height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden}
+  .fill{position:absolute;left:50%;top:0;bottom:0;border-radius:999px;box-shadow:0 0 24px rgba(34,211,238,.5)}
+  .bigNum{position:absolute;right:16px;top:12px;font:600 42px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;color:#eef2f6}
+  .label{position:absolute;left:16px;top:12px;font-size:12px;letter-spacing:.08em;opacity:.9;text-transform:uppercase;display:flex;gap:8px;align-items:center;color:#e5e7eb}
+  .icon{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;opacity:.9}
+  .dial{position:relative;aspect-ratio:1/1;border-radius:18px;background:radial-gradient(800px 600px at 50% 30%, #0f1624 0%, #0b0f16 60%, transparent 100%);overflow:hidden;border:1px solid rgba(255,255,255,.12)}
+  .dial svg{position:absolute;inset:0}
+  .dial .num{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font:600 42px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;color:#eef2f6}
+  .apple-grid{display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:20px}
+  @media(max-width:900px){ .apple-grid{grid-template-columns:1fr} }
+  .gauge{position:relative;aspect-ratio:1/1;border-radius:28px;background:radial-gradient(900px 700px at 50% 30%, #0f1218 0%, #0c0f15 60%, #0b0c10 100%);box-shadow:inset 0 0 0 1px rgba(255,255,255,.04), inset 0 8px 40px rgba(0,0,0,.6)}
+  .isuzu-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:16px}
+  @media(max-width:900px){ .isuzu-grid{grid-template-columns:1fr} }
+  .panel{border:1px solid #2b2b2b;border-radius:12px;background:#0a0a0a;box-shadow:inset 0 2px 0 rgba(255,255,255,.04), 0 4px 30px rgba(0,0,0,.5);padding:14px;color:#f3f4f6}
+  .segBar{display:grid;grid-template-columns:repeat(30,1fr);gap:2px;height:16px;background:#111;padding:4px;border-radius:8px;border:1px solid #2b2b2b}
+  .seg{background:#1a1a1a;border-radius:3px}
+  .seg.on{background:linear-gradient(#ff7a00,#ff3b00);box-shadow:0 0 8px rgba(255,80,0,.6)}
+  .led{font:700 40px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;letter-spacing:.02em}
+  .badge{font-size:11px;color:#c4bdb6;text-transform:uppercase;letter-spacing:.12em}
+  .isuzu-title{display:flex;align-items:center;gap:8px}
+  .isuzu-icon{width:16px;height:16px;stroke:#ff3b00;stroke-width:2;fill:none}
+  .metal-grid{display:grid; grid-template-columns:1fr 1fr; gap:22px; padding:20px}
+  @media(max-width:900px){ .metal-grid{grid-template-columns:1fr} }
+  .bezel{position:relative;aspect-ratio:1/1;border-radius:50%;background: radial-gradient(160px 160px at 30% 30%, #5b5f66, #2d2f34 60%, #1c1e22 100%);
+          box-shadow: inset 2px 2px 8px rgba(255,255,255,.25), inset -10px -14px 28px rgba(0,0,0,.7), 0 16px 40px rgba(0,0,0,.6);}
+  .bezel::before{content:\"\";position:absolute;inset:12px;border-radius:50%;background: radial-gradient(600px 600px at 50% 40%, #0e0f12 0%, #0c0d10 60%, #0b0b0c 100%); box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);}
+  .tick{position:absolute;left:0;top:0;right:0;bottom:0}
+  .metal-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;color:#f5f7fa;text-shadow:0 0 10px rgba(255,255,255,.2)}
+  .metal-num{font:700 44px ui-monospace, SFMono-Regular, Menlo, Monaco, monospace}
+</style>
+</head>
+<body class="t-original">
+  <div class="topbar">
+    <button class="pill" id="tOriginal" title="Original">Original</button>
+    <button class="pill" id="tApple" title="Apple-inspirerad">Apple</button>
+    <button class="pill" id="tIsuzu" title="Isuzu-inspirerad">Isuzu</button>
+    <button class="pill" id="tMetal" title="Modern metall">Metall</button>
+    <button class="pill" id="openSettings">Inställningar</button>
+    <span class="pill hint">Starta för sensorer • Kalibrera i Inställningar</span>
+  </div>
+
+  <div id="page-original" class="page">
+    <div class="original-grid">
+      <div class="glass">
+        <div class="barBox" id="oPitchBox">
+          <div class="label"><svg class="icon" viewBox="0 0 24 24"><path d="M3 12h18M12 5l5 5M12 19l5-5"/></svg>Pitch • fram/bak</div>
+          <div id="oPitchNum" class="bigNum">0.0°</div>
+          <div class="hTrack" id="oPitchTrack"></div>
+          <div class="puck" id="oPitchPuck"></div>
+          <div class="bar"><div class="fill" id="oPitchFill" style="width:0%"></div></div>
+        </div>
+      </div>
+      <div class="glass">
+        <div class="dial">
+          <svg viewBox="0 0 100 100">
+            <defs><filter id="oglow"><feGaussianBlur stdDeviation="1.2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+            <g id="oRollTicks"></g>
+            <g id="oRollH" filter="url(#oglow)"><line x1="12" x2="88" y1="50" y2="50" stroke="#cbd5e1" stroke-width="0.8" stroke-linecap="round"/></g>
+            <g id="oRollSweep" filter="url(#oglow)"></g>
+          </svg>
+          <div id="oRollNum" class="num">0.0°</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-apple" class="page hidden">
+    <div class="glass">
+      <div class="title">Mätare</div>
+      <div class="apple-grid">
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <defs>
+              <linearGradient id="ringGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="rgba(255,255,255,.85)"/>
+                <stop offset="100%" stop-color="rgba(255,255,255,.12)"/>
+              </linearGradient>
+              <filter id="softGlow">
+                <feGaussianBlur stdDeviation="1.2" result="b"/>
+                <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+            </defs>
+            <circle cx="50" cy="50" r="46" fill="none" stroke="url(#ringGrad)" stroke-width="0.5"/>
+            <g id="aPitchTicks"></g>
+            <g id="aPitchH" filter="url(#softGlow)"><line x1="14" x2="86" y1="50" y2="50" stroke="#dbe4ee" stroke-width="0.7" stroke-linecap="round"/></g>
+            <g id="aPitchSweep" filter="url(#softGlow)"></g>
+          </svg>
+          <div class="center">
+            <div id="aPitchNum" class="num">0.0°</div>
+            <div class="hint">Pitch • fram/bak</div>
+          </div>
+        </div>
+        <div class="gauge">
+          <svg viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="46" fill="none" stroke="url(#ringGrad)" stroke-width="0.5"/>
+            <g id="aRollTicks"></g>
+            <g id="aRollH" filter="url(#softGlow)"><line x1="14" x2="86" y1="50" y2="50" stroke="#dbe4ee" stroke-width="0.7" stroke-linecap="round"/></g>
+            <g id="aRollSweep" filter="url(#softGlow)"></g>
+          </svg>
+          <div class="center">
+            <div id="aRollNum" class="num">0.0°</div>
+            <div class="hint">Roll • sidolutning</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-isuzu" class="page hidden">
+    <div class="isuzu-grid">
+      <div class="panel">
+        <div class="isuzu-title"><svg class="isuzu-icon" viewBox="0 0 24 24"><path d="M3 12h18M12 5l5 5M12 19l5-5"/></svg><span class="badge">Pitch • fram/bak</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div id="iPitchNum" class="led">0.0°</div>
+        </div>
+        <div id="iPitchSeg" class="segBar" style="margin-top:8px"></div>
+      </div>
+      <div class="panel">
+        <div class="isuzu-title"><svg class="isuzu-icon" viewBox="0 0 24 24"><path d="M12 3v18M5 12l5-5M19 12l-5-5"/></svg><span class="badge">Roll • sidolutning</span></div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px">
+          <div id="iRollNum" class="led">0.0°</div>
+        </div>
+        <div id="iRollSeg" class="segBar" style="margin-top:8px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="page-metal" class="page hidden">
+    <div class="metal-grid">
+      <div class="bezel">
+        <svg class="tick" viewBox="0 0 100 100">
+          <g id="mPitchTicks"></g>
+          <g id="mPitchH"><line x1="14" x2="86" y1="50" y2="50" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/></g>
+          <g id="mPitchSweep"></g>
+        </svg>
+        <div class="metal-center">
+          <div id="mPitchNum" class="metal-num">0.0°</div>
+          <div class="hint">Pitch • fram/bak</div>
+        </div>
+      </div>
+      <div class="bezel">
+        <svg class="tick" viewBox="0 0 100 100">
+          <g id="mRollTicks"></g>
+          <g id="mRollH"><line x1="14" x2="86" y1="50" y2="50" stroke="#e5e7eb" stroke-width="0.8" stroke-linecap="round"/></g>
+          <g id="mRollSweep"></g>
+        </svg>
+        <div class="metal-center">
+          <div id="mRollNum" class="metal-num">0.0°</div>
+          <div class="hint">Roll • sidolutning</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="drawer" class="drawer hidden">
+    <h3>Inställningar</h3>
+    <div class="row"><label>Accentfärg</label><input id="accentColor" type="color" value="#22d3ee"></div>
+    <div class="row"><label>Pitch gult (°)</label><input id="pWarn" type="range" min="5" max="45" step="1" value="25"><span id="pWarnVal">25</span></div>
+    <div class="row"><label>Pitch rött (°)</label><input id="pRed" type="range" min="10" max="60" step="1" value="35"><span id="pRedVal">35</span></div>
+    <div class="row"><label>Roll gult (°)</label><input id="rWarn" type="range" min="5" max="45" step="1" value="20"><span id="rWarnVal">20</span></div>
+    <div class="row"><label>Roll rött (°)</label><input id="rRed" type="range" min="10" max="60" step="1" value="30"><span id="rRedVal">30</span></div>
+    <div class="row"><label>Visa horisontlinje</label><input id="showHorizon" type="checkbox" checked></div>
+    <div class="row"><button id="calBoth" class="gBtn">Kalibrera (båda)</button><button id="resetCal" class="gBtn">Nollställ kal.</button></div>
+    <div class="row"><button id="calPitch" class="gBtn">Kalibrera Pitch</button><button id="calRoll" class="gBtn">Kalibrera Roll</button></div>
+  </div>
+
+  <div class="controls">
+    <button id="startBtn" class="btn">Starta</button>
+    <button id="stopBtn" class="btn hidden">Stoppa</button>
+  </div>
+
+<script>
+(function(){
+  const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
+  const toFixed=(v,n=1)=>Number.isFinite(v)?v.toFixed(n):"—";
+
+  let theme='original';
+  let rawRoll=0, rawPitch=0, roll=0, pitch=0;
+  let rollZero=0, pitchZero=0;
+  let raf;
+
+  const S = { accent:'#22d3ee', pWarn:25, pRed:35, rWarn:20, rRed:30, showH:true };
+
+  function drawTicks(groupId, max=45, color='rgba(229,231,235,.85)'){
+    const g=document.getElementById(groupId); if(!g) return; g.innerHTML="";
+    for(let a=-max;a<=max;a+=5){
+      const len=(a%10===0)?3:2, r=44.5;
+      const rad=(a-90)*Math.PI/180;
+      const x1=50 + Math.cos(rad)*r, y1=50 + Math.sin(rad)*r;
+      const x2=50 + Math.cos(rad)*(r-len), y2=50 + Math.sin(rad)*(r-len);
+      const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+      line.setAttribute('x1',x1); line.setAttribute('y1',y1);
+      line.setAttribute('x2',x2); line.setAttribute('y2',y2);
+      line.setAttribute('stroke',color); line.setAttribute('stroke-width','0.6');
+      g.appendChild(line);
+      if(a%10===0){
+        const tx=50 + Math.cos(rad)*(r-6), ty=50 + Math.sin(rad)*(r-6);
+        const text=document.createElementNS('http://www.w3.org/2000/svg','text');
+        text.setAttribute('x',tx); text.setAttribute('y',ty);
+        text.setAttribute('text-anchor','middle'); text.setAttribute('dominant-baseline','middle');
+        text.setAttribute('fill',color); text.setAttribute('font-size','3.6');
+        text.textContent=String(Math.abs(a));
+        g.appendChild(text);
+      }
+    }
+  }
+  function setRotate(groupId, deg){ const g=document.getElementById(groupId); if(g) g.setAttribute('transform',`rotate(${deg} 50 50)`); }
+  function setSweep(groupId, deg, color){
+    const g=document.getElementById(groupId); if(!g) return;
+    const len=8, r=44;
+    const from=(deg-len/2-90)*Math.PI/180, to=(deg+len/2-90)*Math.PI/180;
+    const x1=50 + Math.cos(from)*r, y1=50 + Math.sin(from)*r;
+    const x2=50 + Math.cos(to)*r, y2=50 + Math.sin(to)*r;
+    g.innerHTML="";
+    const path=document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d',`M ${x1} ${y1} A ${r} ${r} 0 0 1 ${x2} ${y2}`);
+    path.setAttribute('fill','none'); path.setAttribute('stroke',color); path.setAttribute('stroke-width','3.2'); path.setAttribute('stroke-linecap','round'); path.setAttribute('opacity','.95');
+    g.appendChild(path);
+  }
+  function setSegBar(containerId, valueDeg, max=30){
+    const wrap=document.getElementById(containerId); if(!wrap) return;
+    if(!wrap.dataset.built){
+      wrap.innerHTML=''; for(let i=0;i<30;i++){ const d=document.createElement('div'); d.className='seg'; wrap.appendChild(d); }
+      wrap.dataset.built='1';
+    }
+    const nodes=wrap.querySelectorAll('.seg');
+    const nOn = Math.round(Math.max(0, Math.min(1, Math.abs(valueDeg)/max))*nodes.length);
+    nodes.forEach((el,i)=>{ el.classList.toggle('on', i < nOn); });
+  }
+
+  // static ticks
+  drawTicks('oRollTicks','', 'rgba(229,231,235,.7)');
+  drawTicks('aPitchTicks'); drawTicks('aRollTicks');
+  drawTicks('mPitchTicks'); drawTicks('mRollTicks');
+
+  const pages = {
+    original: document.getElementById('page-original'),
+    apple: document.getElementById('page-apple'),
+    isuzu: document.getElementById('page-isuzu'),
+    metal: document.getElementById('page-metal'),
+  };
+  function showTheme(t){
+    theme=t;
+    document.body.className = 't-'+t;
+    Object.entries(pages).forEach(([k,el])=>{ el.classList.toggle('hidden', k!==t); });
+  }
+  document.getElementById('tOriginal').addEventListener('click', ()=>showTheme('original'));
+  document.getElementById('tApple').addEventListener('click', ()=>showTheme('apple'));
+  document.getElementById('tIsuzu').addEventListener('click', ()=>showTheme('isuzu'));
+  document.getElementById('tMetal').addEventListener('click', ()=>showTheme('metal'));
+
+  const drawer=document.getElementById('drawer');
+  document.getElementById('openSettings').addEventListener('click', ()=>drawer.classList.toggle('hidden'));
+  function bindRange(id, key, outId){
+    const el=document.getElementById(id), out=document.getElementById(outId);
+    el.addEventListener('input', ()=>{ S[key]=parseInt(el.value,10); out.textContent=String(S[key]); });
+    out.textContent=el.value;
+  }
+  bindRange('pWarn','pWarn','pWarnVal'); bindRange('pRed','pRed','pRedVal');
+  bindRange('rWarn','rWarn','rWarnVal'); bindRange('rRed','rRed','rRedVal');
+  const accentInp=document.getElementById('accentColor'); accentInp.addEventListener('input', ()=>{ S.accent=accentInp.value; });
+  const showH=document.getElementById('showHorizon'); showH.addEventListener('change', ()=>{ S.showH=showH.checked; });
+
+  document.getElementById('calBoth').addEventListener('click', ()=>{ rollZero=rawRoll; pitchZero=rawPitch; });
+  document.getElementById('calRoll').addEventListener('click', ()=>{ rollZero=rawRoll; });
+  document.getElementById('calPitch').addEventListener('click', ()=>{ pitchZero=rawPitch; });
+  document.getElementById('resetCal').addEventListener('click', ()=>{ rollZero=0; pitchZero=0; });
+
+  function handleOrientation(e){
+    const beta=Math.max(-90, Math.min(90, e.beta??0));
+    const gamma=Math.max(-90, Math.min(90, e.gamma??0));
+    rawPitch=beta; rawRoll=gamma;
+  }
+  async function start(){
+    if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const perm=await DeviceOrientationEvent.requestPermission();
+      if(perm!=='granted') return;
+    }
+    window.addEventListener('deviceorientation', handleOrientation, {passive:true});
+    document.getElementById('startBtn').classList.add('hidden');
+    document.getElementById('stopBtn').classList.remove('hidden');
+    loop();
+  }
+  function stop(){
+    window.removeEventListener('deviceorientation', handleOrientation);
+    document.getElementById('stopBtn').classList.add('hidden');
+    document.getElementById('startBtn').classList.remove('hidden');
+    cancelAnimationFrame(raf);
+  }
+  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('stopBtn').addEventListener('click', stop);
+
+  function updateOriginal(){
+    const box=document.getElementById('oPitchBox').getBoundingClientRect();
+    const left=20, right=box.width-20, mid=left + (right-left)/2;
+    const span=right-left; const maxDeg=30;
+    const x = mid + Math.max(-1, Math.min(1, (pitch/maxDeg)))*(span/2 - 10);
+    const puck=document.getElementById('oPitchPuck');
+    puck.style.left=(x)+'px';
+    puck.style.background = S.accent+'33';
+    puck.style.border = '1px solid '+S.accent;
+    puck.style.boxShadow = `0 0 16px ${S.accent}66`;
+
+    document.getElementById('oPitchNum').textContent=toFixed(pitch,1)+'°';
+    document.getElementById('oRollNum').textContent=toFixed(roll,1)+'°';
+
+    const show = S.showH ? 'visible' : 'hidden';
+    document.getElementById('oRollH').style.visibility = show;
+    document.getElementById('oPitchTrack').style.visibility = show;
+
+    setRotate('oRollH', roll);
+    setSweep('oRollSweep', roll, S.accent);
+
+    const fill=document.getElementById('oPitchFill');
+    const percent = Math.max(-1, Math.min(1, (pitch/30)))*50;
+    fill.style.background = `linear-gradient(90deg, ${S.accent}, #22c55e)`;
+    if(percent>=0){ fill.style.left='50%'; fill.style.width=percent+'%'; }
+    else { fill.style.left=(50+percent)+'%'; fill.style.width=(-percent)+'%'; }
+
+    const pc=Math.abs(pitch), rc=Math.abs(roll);
+    document.getElementById('oPitchNum').style.color = pc>=S.pRed ? '#ef4444' : pc>=S.pWarn ? '#facc15' : '#e5e7eb';
+    document.getElementById('oRollNum').style.color  = rc>=S.rRed ? '#ef4444' : rc>=S.rWarn ? '#facc15' : '#e5e7eb';
+  }
+  function updateApple(){
+    document.getElementById('aPitchNum').textContent=toFixed(pitch,1)+'°';
+    document.getElementById('aRollNum').textContent=toFixed(roll,1)+'°';
+    document.getElementById('aPitchH').style.visibility = S.showH ? 'visible':'hidden';
+    document.getElementById('aRollH').style.visibility  = S.showH ? 'visible':'hidden';
+    setRotate('aPitchH', pitch);
+    setRotate('aRollH', roll);
+    setSweep('aPitchSweep', pitch, '#ffffff');
+    setSweep('aRollSweep',  roll, '#ffffff');
+    const pc=Math.abs(pitch), rc=Math.abs(roll);
+    document.getElementById('aPitchNum').style.color = pc>=S.pRed ? '#ef4444' : pc>=S.pWarn ? '#facc15' : '#e5e7eb';
+    document.getElementById('aRollNum').style.color  = rc>=S.rRed ? '#ef4444' : rc>=S.rWarn ? '#facc15' : '#e5e7eb';
+  }
+  function setSegBarValue(id, value){ setSegBar(id, value, 30); }
+  function updateIsuzu(){
+    document.getElementById('iPitchNum').textContent=toFixed(pitch,1)+'°';
+    document.getElementById('iRollNum').textContent=toFixed(roll,1)+'°';
+    setSegBarValue('iPitchSeg', pitch);
+    setSegBarValue('iRollSeg', roll);
+  }
+  function updateMetal(){
+    document.getElementById('mPitchNum').textContent=toFixed(pitch,1)+'°';
+    document.getElementById('mRollNum').textContent=toFixed(roll,1)+'°';
+    document.getElementById('mPitchH').style.visibility = S.showH ? 'visible':'hidden';
+    document.getElementById('mRollH').style.visibility  = S.showH ? 'visible':'hidden';
+    setRotate('mPitchH', pitch);
+    setRotate('mRollH', roll);
+    setSweep('mPitchSweep', pitch, '#e5e7eb');
+    setSweep('mRollSweep',  roll, '#e5e7eb');
+  }
+
+  function loop(){
+    const pr=rawRoll - rollZero, pp=rawPitch - pitchZero;
+    roll = roll + 0.15*(pr - roll);
+    pitch = pitch + 0.15*(pp - pitch);
+    if(theme==='original') updateOriginal();
+    if(theme==='apple')    updateApple();
+    if(theme==='isuzu')    updateIsuzu();
+    if(theme==='metal')    updateMetal();
+    raf=requestAnimationFrame(loop);
+  }
+
+  // init seg bars
+  (function initSeg(){ const a=document.getElementById('iPitchSeg'); if(a && !a.dataset.built){ for(let i=0;i<30;i++){ const d=document.createElement('div'); d.className='seg'; a.appendChild(d);} a.dataset.built='1'; }
+                         const b=document.getElementById('iRollSeg'); if(b && !b.dataset.built){ for(let i=0;i<30;i++){ const d=document.createElement('div'); d.className='seg'; b.appendChild(d);} b.dataset.built='1'; }})();
+
+  // theme default
+  function showTheme(t){
+    theme=t;
+    document.body.className='t-'+t;
+    ['page-original','page-apple','page-isuzu','page-metal'].forEach(id=>{
+      document.getElementById(id).classList.add('hidden');
+    });
+    document.getElementById('page-'+t).classList.remove('hidden');
+  }
+  document.getElementById('tOriginal').addEventListener('click', ()=>showTheme('original'));
+  document.getElementById('tApple').addEventListener('click', ()=>showTheme('apple'));
+  document.getElementById('tIsuzu').addEventListener('click', ()=>showTheme('isuzu'));
+  document.getElementById('tMetal').addEventListener('click', ()=>showTheme('metal'));
+  showTheme('original');
+  // start/stop
+  async function start(){
+    if (typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const perm=await DeviceOrientationEvent.requestPermission();
+      if(perm!=='granted') return;
+    }
+    window.addEventListener('deviceorientation', (e)=>{
+      const beta=Math.max(-90, Math.min(90, e.beta??0));
+      const gamma=Math.max(-90, Math.min(90, e.gamma??0));
+      rawPitch=beta; rawRoll=gamma;
+    }, {passive:true});
+    document.getElementById('startBtn').classList.add('hidden');
+    document.getElementById('stopBtn').classList.remove('hidden');
+    loop();
+  }
+  function stop(){
+    window.removeEventListener('deviceorientation', ()=>{});
+    document.getElementById('stopBtn').classList.add('hidden');
+    document.getElementById('startBtn').classList.remove('hidden');
+    cancelAnimationFrame(raf);
+  }
+  document.getElementById('startBtn').addEventListener('click', start);
+  document.getElementById('stopBtn').addEventListener('click', stop);
+})();
+</script>
+</body>
+</html>
